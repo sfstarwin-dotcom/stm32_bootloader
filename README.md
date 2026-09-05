@@ -64,31 +64,19 @@ A Python 3 script (`scripts/append_crc.py`) is provided to automatically:
 
 ## 🔄 Bootloader Workflow
 
-```javascript
-[ System Reset / Power On ]
-            │
-            ▼
-[ Bootloader Initialization ]
-            │
-            ▼
-[ Read Slot A Metadata & CRC ]
-            │
-     Is Slot A Valid?
-     /              ( YES )              ( NO )
-   /                      │         [ Check Slot B Metadata ]
-  │                     │
-  │              Is Slot B Valid?
-  │              /                │        ( YES )              ( NO )
-  │          /                      │[ Copy Slot B -> A ]      [ Fault / Trap ]
-  │(Automatic Rollback)
-  │          │
-  └────┬─────┘
-       ▼
-[ Disable IRQs & Peripherals ]
-       │
-[ Relocate VTOR to Slot A ]
-       │
-[ Load MSP & Jump to Reset ]
+```mermaid
+flowchart TD
+   R[System reset] --> I[Initialize bootloader]
+   I --> A{Validate Slot A<br/>magic + length + CRC-32}
+   A -->|Valid| H[Clean handoff]
+   A -->|Invalid| B{Validate Slot B<br/>magic + length + CRC-32}
+   B -->|Valid| C[Recover or copy Slot B to Slot A]
+   C --> H
+   B -->|Invalid| F[Fault/trap state<br/>debugger or factory reset]
+   H --> D[Disable interrupts<br/>deinitialize peripherals]
+   D --> V[Set VTOR to Slot A]
+   V --> M[Load MSP from Slot A vector table]
+   M --> J[Jump to application reset handler]
 ```
 
 ### Boot Decision Logic
